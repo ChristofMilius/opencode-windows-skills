@@ -85,8 +85,9 @@ fresh instance launches in a few seconds.
 
 ## Notes
 
-- Restarting opencode discards in-memory conversation state — save anything
-  important first.
+- Restarting opencode interrupts any in-flight generation and loses unsent
+  input; previously committed messages in the session history are safe and
+  resumable after restart.
 - The helper resolves the opencode executable via `Get-Command opencode`
   first, then falls back to the default desktop install path.
 - No hardcoded user paths or credentials are used; install paths come from

@@ -10,18 +10,30 @@ changing `opencode.json`, adding a skill/agent/plugin, or editing any
 config-time file, the running session keeps using stale config until it is
 quit and relaunched.
 
-## Before restarting: mandatory confirmation and state warning
+## Before restarting: mandatory confirmation and what a kill actually loses
 
-**A restart kills this session.** Killing the opencode process tree discards
-all in-memory conversation and session state — unsaved messages, drafting
-work, and anything the user typed but did not export are **gone permanently**.
-There is no prompt, no autosave rescue, and no undo.
+A restart kills the opencode process tree (main process + Electron children).
+**It does NOT erase your conversation history.** opencode persists every
+completed message to disk continuously (SQLite, WAL mode) — session history
+survives a kill and is fully resumable after the restart, exactly like a
+manual close/relaunch. Previous in-session restarts never lost data for a
+reason: messages are already on disk.
 
-Because of this, the agent MUST do BOTH of the following before triggering
-any restart:
+What a hard kill DOES leave behind:
 
-1. **Explicitly warn the user** that restarting discards the current
-   session's in-memory conversation state.
+- **An in-flight response.** If the model is currently generating a reply or
+  a tool call is mid-execution, that partial turn is cut short and its result
+  is not recorded. You miss only that one unfinished turn.
+- **Unsent text in the input box.** Anything typed but not yet submitted is
+  in memory only and is lost.
+
+That is the entire cost. It is the same class of loss as closing the window
+mid-reply, not "all session data destroyed".
+
+Before triggering a restart, the agent MUST do BOTH of the following:
+
+1. **Briefly warn the user** that any in-flight generation and unsent input
+   will be lost (history is safe), and
 2. **Wait for explicit user confirmation.** Never run
    `schtasks /Run /TN "opencode_restart"` on your own initiative, on a
    judgment call, or as part of a config change "cleanup". Restart only when
