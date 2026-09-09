@@ -53,7 +53,7 @@ Files (in `$env:USERPROFILE\.config\opencode\scripts\`):
 
 | File | Purpose |
 |---|---|
-| `restart-opencode.ps1` | The helper: auto-discovers the main opencode PID, kills the process tree, launches a fresh instance, exits. |
+| `restart-opencode.ps1` | The helper: auto-discovers the main opencode PID, captures the window placement, kills the process tree, launches a fresh instance, and restores the window position/size/snap layout on the new window. |
 | `restart-opencode-launcher.vbs` | Starts pwsh running the helper with SW_HIDE so no console appears. |
 
 ### One-time setup (install the task)
@@ -78,7 +78,8 @@ window appears a few seconds later.
 ## How the helper works
 
 `restart-opencode.ps1` (auto-discovering, so no PID needed — the PID would
-be stale by the time a task runs):
+be stale by the time a task runs). Everything is logged to
+`%TEMP%\opencode_restart.log` because the task runs hidden:
 
 1. Finds the main opencode process: the `OpenCode.exe` whose command line
    does NOT contain `--type=renderer/gpu/utility`.
@@ -86,11 +87,20 @@ be stale by the time a task runs):
    Get-CimInstance Win32_Process -Filter "Name='OpenCode.exe'" |
        Where-Object { $_.CommandLine -notmatch '--type=' } | Select-Object -First 1
    ```
-2. Enumerates the full process tree (main + Electron children) and
+2. **Captures the window placement** of the main visible window — the
+   placement table (`GetWindowPlacement`: showCmd, restore-rect) plus the true
+   on-screen rect (`GetWindowRect`), in per-monitor DPI-aware coordinates.
+   Whatever the window looks like at restart time (position, size, Win11 snap
+   arrangement) is what gets restored.
+3. Enumerates the full process tree (main + Electron children) and
    `Stop-Process -Force`s them.
-3. Waits ~2s so the single-instance lock / ports release.
-4. Launches a fresh opencode in the configured directory.
-5. Exits.
+4. Waits ~2s so the single-instance lock / ports release.
+5. Launches a fresh opencode in the requested directory.
+6. Waits for the new main process, then for its window, then **fights the
+   captured placement back into place**: `ShowWindow` + `SetWindowPos`
+   re-applied every 400 ms until the window reports the captured rect (up to
+   30 attempts), so Electron's own late geometry restore cannot win.
+7. Exits.
 
 ## VBS launcher details
 
@@ -102,9 +112,13 @@ be stale by the time a task runs):
 
 ## After launching
 
-- Tell the user the restart is in progress; the new window appears shortly.
+- Tell the user the restart is in progress; the new window appears shortly,
+  back at the previously captured position/size/snap arrangement.
 - Do not attempt to verify state from this session afterwards — it will have
   gone away. Confirm with the user that the new window opened.
+- If the window did not come back correctly, the helper's log shows why:
+  `Get-Content "$env:TEMP\opencode_restart.log"` (e.g. `placement did not
+  stabilize after 30 attempts`).
 
 ## Notes / limitations
 
