@@ -10,7 +10,7 @@ opencode itself without leaving a stray console window behind.
 |---|---|---|
 | `uac-elevate` | `skills/uac-elevate/SKILL.md` | Run a privileged command via `Start-Process -Verb RunAs` when a command fails with "Access is denied" / ERROR 5. Shows a UAC consent prompt on the user's desktop. |
 | `opencode-restart` | `skills/opencode-restart/SKILL.md` | Restart opencode with **no lingering console window** by triggering a Windows Scheduled Task that runs a hidden helper: kills the process tree and launches a fresh instance. |
-| `opencode-session-repair` | `skills/opencode-session-repair/SKILL.md` | Codifies how opencode persists sessions to disk (SQLite/WAL), what survives a kill versus what is lost, and how to verify session integrity read-only after a crash. |
+| `opencode-session-repair` | `skills/opencode-session-repair/SKILL.md` | Repairs sessions after a drive-letter/path change (disk consolidation). Rewrites stale `project.worktree` / `project_directory` / `session.directory`/`path` paths in `opencode.db` after backup, with verified SQL. |
 
 ## Scripts
 
