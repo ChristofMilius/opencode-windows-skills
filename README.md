@@ -24,7 +24,7 @@ sessions after drive/path changes.
 
 | Guide | Purpose |
 |---|---|
-| [docs/window-placement-restore.md](docs/window-placement-restore.md) | Deep dive into the window-placement preservation in `restart-opencode.ps1`: capture → restore fighting loop, and the traps that make naive restores fail (DPI awareness, `SetWindowPos` vs `SetWindowPlacement`, snap layouts, the PowerShell delegate scope trap). |
+| [docs/window-placement-restore.md](docs/window-placement-restore.md) | Feature docs for the window-placement preservation in `restart-opencode.ps1`: capture → restore fighting loop, and the traps that make naive restores fail (DPI awareness, `SetWindowPos` vs `SetWindowPlacement`, snap layouts, the PowerShell delegate scope trap). |
 
 ## Requirements
 
