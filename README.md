@@ -1,8 +1,9 @@
 # opencode-windows-skills
 
-Two PowerShell/Windows skills for [opencode](https://opencode.ai) agents that
-fill a gap in non-elevated shells: raising a UAC prompt, and restarting
-opencode itself without leaving a stray console window behind.
+PowerShell/Windows skills and helpers for [opencode](https://opencode.ai)
+agents that fill gaps in non-elevated shells: raising a UAC prompt, restarting
+opencode itself without leaving a stray console window behind, and repairing
+sessions after drive/path changes.
 
 ## Skills
 
@@ -16,8 +17,14 @@ opencode itself without leaving a stray console window behind.
 
 | Script | Purpose |
 |---|---|
-| `scripts/restart-opencode.ps1` | Auto-discovers the main `OpenCode.exe` PID (the one without `--type=`), kills the whole Electron process tree, waits, and launches a fresh opencode. |
+| `scripts/restart-opencode.ps1` | Auto-discovers the main `OpenCode.exe` PID (the one without `--type=`), captures the window placement, kills the whole Electron process tree, waits, relaunches opencode, and **restores the window position/size/snap layout** on the fresh instance. |
 | `scripts/restart-opencode-launcher.vbs` | Starts the helper with a hidden window via `wscript.exe` + `WScript.Shell.Run(..., 0, False)`, so no console ever appears. |
+
+## Guides
+
+| Guide | Purpose |
+|---|---|
+| [docs/window-placement-restore.md](docs/window-placement-restore.md) | Deep dive into the window-placement preservation in `restart-opencode.ps1`: capture → restore fighting loop, and the traps that make naive restores fail (DPI awareness, `SetWindowPos` vs `SetWindowPlacement`, snap layouts, the PowerShell delegate scope trap). |
 
 ## Requirements
 
@@ -82,17 +89,25 @@ schtasks /Run /TN "opencode_restart"
 ```
 
 There is no console window. The current opencode session is torn down and a
-fresh instance launches in a few seconds.
+fresh instance launches in a few seconds. The restart helper captures the
+window placement (position, size, Win11 snap arrangement) just before killing
+the old instance, and re-applies it to the new window — see
+[docs/window-placement-restore.md](docs/window-placement-restore.md).
 
 ## Notes
 
 - Restarting opencode interrupts any in-flight generation and loses unsent
   input; previously committed messages in the session history are safe and
   resumable after restart.
+- Window placement is captured from whatever is on screen at restart time:
+  position the opencode window (and snap arrangement) before triggering the
+  restart.
 - The helper resolves the opencode executable via `Get-Command opencode`
   first, then falls back to the default desktop install path.
 - No hardcoded user paths or credentials are used; install paths come from
   `%USERPROFILE%` / `%LOCALAPPDATA%`.
+- The window-restore guide's appendix mirrors the installed script; the
+  canonical copy lives at `scripts/restart-opencode.ps1` in this repo.
 
 ## License
 
