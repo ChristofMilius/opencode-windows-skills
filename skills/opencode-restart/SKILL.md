@@ -10,6 +10,27 @@ changing `opencode.json`, adding a skill/agent/plugin, or editing any
 config-time file, the running session keeps using stale config until it is
 quit and relaunched.
 
+## Before restarting: mandatory confirmation and state warning
+
+**A restart kills this session.** Killing the opencode process tree discards
+all in-memory conversation and session state — unsaved messages, drafting
+work, and anything the user typed but did not export are **gone permanently**.
+There is no prompt, no autosave rescue, and no undo.
+
+Because of this, the agent MUST do BOTH of the following before triggering
+any restart:
+
+1. **Explicitly warn the user** that restarting discards the current
+   session's in-memory conversation state.
+2. **Wait for explicit user confirmation.** Never run
+   `schtasks /Run /TN "opencode_restart"` on your own initiative, on a
+   judgment call, or as part of a config change "cleanup". Restart only when
+   the user has clearly asked for it or approved it — an explicit yes in
+   response to your warning.
+
+A restart triggered without the user's explicit confirmation is a bug in
+this workflow.
+
 ## The canonical approach: Windows Scheduled Task (no console window)
 
 A scheduled task runs detached, and by routing the action through
@@ -75,8 +96,6 @@ be stale by the time a task runs):
 
 ## Notes / limitations
 
-- Killing the opencode tree discards the current session's in-memory chat
-  state. Warn the user to drain anything important before restarting.
 - If the task doesn't exist yet, install it with the setup command above
   (do this during skill setup, then trigger with `/Run`).
 - To clean up: `schtasks /Delete /TN "opencode_restart" /F`.
