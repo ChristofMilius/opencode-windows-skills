@@ -109,7 +109,8 @@ every step to `%TEMP%\opencode_restart.log` so a failed restore is diagnosable.
 ## Verification
 
 A test with the window at rect `1913,0-2887,1039` (showCmd 1), snapped into a
-multi-monitor layout:
+multi-monitor layout (log sample from an earlier run; the launch directory is
+now resolved via `%OPENCODE_PROJECTS%` with a `%USERPROFILE%` fallback):
 
 ```
 [23:44:29.988] discovered opencode PID 17776, cwd 'C:\Windows\System32'

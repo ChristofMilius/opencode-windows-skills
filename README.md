@@ -106,8 +106,12 @@ the old instance, and re-applies it to the new window — see
   first, then falls back to the default desktop install path.
 - No hardcoded user paths or credentials are used; install paths come from
   `%USERPROFILE%` / `%LOCALAPPDATA%`.
-- The window-restore guide's appendix mirrors the installed script; the
-  canonical copy lives at `scripts/restart-opencode.ps1` in this repo.
+- The fresh opencode instance starts in `%OPENCODE_PROJECTS%` if that variable
+  is set (e.g. `setx OPENCODE_PROJECTS "I:\opencode_projects"`), otherwise in
+  `%USERPROFILE%` — otherwise the scheduled task would launch it in its default
+  working directory.
+- The canonical restart helper lives at `scripts/restart-opencode.ps1` in this
+  repo (installed to `%USERPROFILE%\.config\opencode\scripts\`).
 
 ## License
 
