@@ -1,0 +1,59 @@
+# ============================================================================
+# WHITELIST-FIRST .gitignore
+# ============================================================================
+# Nothing is tracked, staged or pushed unless it is un-ignored on purpose.
+# A deny-list would make every new file tracked by default and depend on
+# someone remembering; this structure fails closed instead.
+#
+# Rules that decide whether this file is correct (all fail silently):
+#   1. `*` matches a path but NOT what is inside a directory tree, so every
+#      versioned tree needs the pair `!dir/` + `!dir/**`.
+#   2. Ties resolve by LAST match, so re-ignores must come AFTER un-ignores.
+#   3. `*` also ignores `.gitignore` itself, so it is un-ignored explicitly.
+#   4. A trailing `# ...` is part of the pattern, not a comment. Comments are
+#      on their own lines only.
+#   5. Anchor root-level trees with a leading slash (`!/docs/`), otherwise the
+#      name matches at every level.
+# ============================================================================
+
+
+# --- 1. Ignore everything by default ---------------------------------------
+*
+
+
+# --- 2. Whitelist: root-level files ---------------------------------------
+!.gitignore
+!LICENSE
+!README.md
+
+
+# --- 3. Whitelist: shipped source and documentation trees ------------------
+!/.github/
+!/.github/**
+!/docs/
+!/docs/**
+!/scripts/
+!/scripts/**
+!/skills/
+!/skills/**
+
+
+# --- 4. Re-ignore what the un-ignores swept back in ------------------------
+# Must stay after section 3 - ties go to the last match.
+**/__pycache__/
+*.py[cod]
+
+
+# --- 5. Never tracked, by design -------------------------------------------
+# No un-ignore rule exists for any of these, so the leading `*` keeps them out
+# permanently - there is nothing to forget later. Recorded for intent only.
+#
+#   *.log    helper run logs
+#   .env     real credentials - never versioned
+#   Thumbs.db  .DS_Store  OS noise
+
+
+# Verify before trusting this file:
+#   git add -A --dry-run                 lists exactly what would be staged
+#   git check-ignore -v data/x.json      must resolve to the leading `*`
+#   git ls-files -ci --exclude-standard  must be empty
