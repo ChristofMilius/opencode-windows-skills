@@ -134,6 +134,89 @@ Post-restart measurement of the fresh instance confirmed the window at exactly
 | snapped window expands to full screen after restart | `ShowWindow(SW_MAXIMIZE)` ran after `SetWindowPos` | reorder: `SetWindowPos` last |
 | `placement matched` but window still wrong afterwards | later framework restore beat the last attempt | raise the attempt cap / re-apply for longer |
 
+## v2: why the app does not restore the window itself
+
+The helper exists because opencode's own window-state restore is not reliable.
+Since the v2 desktop rewrite it is worse than flaky: two things in the Electron
+main process mean opencode *cannot* restore a maximized window's placement, and
+always drops the zoom level. They are recorded here because both produce
+symptoms that look like this helper failing.
+
+Verified against opencode desktop **2.0.28** (2026-10-14) by reading the
+minified main bundle in `resources/app.asar` and the live state files it
+writes.
+
+### Only non-maximized bounds are ever recorded
+
+The window-state writer updates the saved geometry only while the window is
+normal — maximized, minimized and fullscreen frames are deliberately skipped:
+
+```js
+o = () => {
+  if (e.isDestroyed()) return
+  let t = e.getBounds()
+  !e.isMaximized() && !e.isMinimized() && !e.isFullScreen() &&
+    (i.x = t.x, i.y = t.y, i.width = t.width, i.height = t.height)
+  i.isMaximized = e.isMaximized()
+  i.isFullScreen = e.isFullScreen()
+}
+```
+
+`createMainWindow` seeds the file with `defaultWidth: 1280, defaultHeight: 800`.
+So for a window that is always maximized, the saved `x/y/width/height` stay at
+the seed and the real position is never learned. The live file shows exactly
+that:
+
+```
+%APPDATA%\ai.opencode.desktop\window-state-<id>.json
+{"width":1280,"height":800,"x":0,"y":0,
+ "displayBounds":{"x":0,"y":0,"width":1920,"height":1080},
+ "isMaximized":true,"isFullScreen":false}
+```
+
+Move the window to a second monitor or into a snap layout and keep it
+maximized, and the file still says `1280x800 @ 0,0` — the next plain launch
+opens on the primary monitor.
+
+### Zoom is forced back to 100% at every launch
+
+`wireZoom` runs on every window creation and sets the factor to 1 before
+anything else:
+
+```js
+function wireZoom(win) {
+  pinchZoomEnabled.set(win, getPinchZoomEnabled())
+  win.webContents.setZoomFactor(1)
+  ...
+}
+```
+
+The factor is only ever changed from the pinch-zoom path (±0.2 steps, clamped
+to 0.2–10) and is never persisted, so a `Ctrl +` / `Ctrl -` level is gone on
+the next start.
+
+### What that means for the helper
+
+- **A plain launch and a helper restart are not equivalent.** The helper
+  re-applies the captured Win32 rect with `SetWindowPos` after launch,
+  independent of opencode's own store — so placement survives *a restart
+  through the helper* even when the app's stored state is the `1280x800`
+  default.
+- **A maximized window is never learned by the app.** opencode's writer skips
+  maximized frames, so restarting a maximized window through the helper
+  restores it for that session only; the next *plain* launch falls back to
+  `1280x800 @ 0,0` again. Keep restarting through the helper, or leave the
+  window snapped/normal once so the app's store records the real rect.
+- **Zoom is out of scope.** The factor lives only inside the running renderer
+  and cannot be read from outside the process, so the helper can neither
+  capture nor re-apply it. Re-apply zoom manually after a restart until
+  upstream persists it.
+
+Upstream tracking (desktop app issues, not this repo): window state reset to
+defaults on every launch (#15165), unreliable window-state save/load (#10791),
+broken maximized-state restore (#12413), and zoom reset to 100 % on restart
+(#50168, open fix PR #50169).
+
 ## Related
 
 - [opencode-restart skill](../skills/opencode-restart/SKILL.md) — the restart

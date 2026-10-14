@@ -102,6 +102,13 @@ the old instance, and re-applies it to the new window — see
 - Window placement is captured from whatever is on screen at restart time:
   position the opencode window (and snap arrangement) before triggering the
   restart.
+- **v2 desktop regression (not caused by this helper):** opencode's own
+  window-state restore is broken on v2 — a maximized window's position is
+  never recorded (the saved file keeps the seeded `1280x800` default) and the
+  zoom level is forced back to 100 % on every launch. The helper still restores
+  window *placement* on each restart, but it cannot preserve zoom, and position
+  is only kept if you restart through the helper. Source evidence and the exact
+  behaviour: [docs/window-placement-restore.md](docs/window-placement-restore.md#v2-why-the-app-does-not-restore-the-window-itself).
 - The helper resolves the opencode executable via `Get-Command opencode`
   first, then falls back to the default desktop install path.
 - No hardcoded user paths or credentials are used; install paths come from
