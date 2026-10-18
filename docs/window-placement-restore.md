@@ -191,9 +191,24 @@ function wireZoom(win) {
 }
 ```
 
-The factor is only ever changed from the pinch-zoom path (±0.2 steps, clamped
-to 0.2–10) and is never persisted, so a `Ctrl +` / `Ctrl -` level is gone on
-the next start.
+The pinch-zoom path changes the factor in ±0.2 steps (clamped to 0.2–10), and
+Chromium itself persists each change per-origin in
+`%APPDATA%\ai.opencode.desktop\Preferences`
+(`partition.per_host_zoom_levels`) — the app does not lose the value, it
+discards it: the persisted factor is restored when the page loads and then
+clobbered by the `setZoomFactor(1)` above, which is visible as a brief
+"renders large, then shrinks" flash at startup. Re-verified on **2.0.32**
+(2026-10-18), same minified shape.
+
+**Local fix:** `scripts/patch-opencode-zoom.ps1` (see the repository README)
+neutralizes exactly that call inside the minified bundle. The replacement
+(`void 0` plus padding spaces) keeps the byte length of the JS file
+unchanged, so the asar archive layout stays valid and no repacking is
+needed; the rest of `wireZoom` (pinch-zoom wiring, wheel-zoom handler,
+title-bar sync) keeps working. The persisted zoom then survives startup
+unmodified. App updates replace `app.asar` and discard the patch — re-run
+the script after each update. Upstream fix: PR #50169 (open at time of
+writing).
 
 ### What that means for the helper
 
@@ -207,10 +222,10 @@ the next start.
   restores it for that session only; the next *plain* launch falls back to
   `1280x800 @ 0,0` again. Keep restarting through the helper, or leave the
   window snapped/normal once so the app's store records the real rect.
-- **Zoom is out of scope.** The factor lives only inside the running renderer
-  and cannot be read from outside the process, so the helper can neither
-  capture nor re-apply it. Re-apply zoom manually after a restart until
-  upstream persists it.
+- **Zoom is managed outside the helper.** The helper neither captures nor
+  re-applies the zoom factor, but `scripts/patch-opencode-zoom.ps1` removes
+  the startup reset entirely, so Chromium's persisted zoom is restored on any
+  launch — plain or helper.
 
 Upstream tracking (desktop app issues, not this repo): window state reset to
 defaults on every launch (#15165), unreliable window-state save/load (#10791),

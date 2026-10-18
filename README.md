@@ -19,6 +19,7 @@ sessions after drive/path changes.
 |---|---|
 | `scripts/restart-opencode.ps1` | Auto-discovers the main `OpenCode.exe` PID (the one without `--type=`), captures the window placement, kills the whole Electron process tree, waits, relaunches opencode, and **restores the window position/size/snap layout** on the fresh instance. |
 | `scripts/restart-opencode-launcher.vbs` | Starts the helper with a hidden window via `wscript.exe` + `WScript.Shell.Run(..., 0, False)`, so no console ever appears. |
+| `scripts/patch-opencode-zoom.ps1` | Re-applies the local zoom-persistence patch to the desktop app's `resources/app.asar`: neutralizes the `wireZoom` startup reset that forces zoom to 100 %, so the zoom level Chromium persists survives launch. Idempotent; re-run after every app update. |
 
 ## Guides
 
@@ -45,6 +46,7 @@ Copy-Item skills\opencode-restart "$env:USERPROFILE\.config\opencode\skills\" -R
 # Helpers
 Copy-Item scripts\restart-opencode.ps1 "$env:USERPROFILE\.config\opencode\scripts\"
 Copy-Item scripts\restart-opencode-launcher.vbs "$env:USERPROFILE\.config\opencode\scripts\"
+Copy-Item scripts\patch-opencode-zoom.ps1 "$env:USERPROFILE\.config\opencode\scripts\"
 ```
 
 Then **restart opencode once** so the skills load (config is not hot-reloaded).
@@ -94,6 +96,26 @@ window placement (position, size, Win11 snap arrangement) just before killing
 the old instance, and re-applies it to the new window — see
 [docs/window-placement-restore.md](docs/window-placement-restore.md).
 
+### patch-opencode-zoom
+
+Zoom set with `Ctrl +` / `Ctrl -` is reset to 100 % on every launch (upstream
+#50168). The patch replaces the unconditional `setZoomFactor(1)` inside
+`wireZoom` in `resources/app.asar` with a byte-length-preserving no-op, so the
+asar needs no repacking and the zoom level Chromium persists
+(`Preferences` → `partition.per_host_zoom_levels`) survives startup:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.config\opencode\scripts\patch-opencode-zoom.ps1"
+```
+
+Restart the desktop app afterwards. The script is idempotent (safe to run at
+any time), backs up `app.asar` first (`app.asar.zoompatch.bak`), and refuses
+to touch anything unless the target pattern matches exactly once. If a future
+app update ships the upstream fix (PR #50169), the script reports the pattern
+is gone — the patch is obsolete then and can be dropped. Because app updates
+replace `app.asar` and silently discard the patch, re-run the script whenever
+zoom reverts to 100 % after an update.
+
 ## Notes
 
 - Restarting opencode interrupts any in-flight generation and loses unsent
@@ -106,8 +128,9 @@ the old instance, and re-applies it to the new window — see
   window-state restore is broken on v2 — a maximized window's position is
   never recorded (the saved file keeps the seeded `1280x800` default) and the
   zoom level is forced back to 100 % on every launch. The helper still restores
-  window *placement* on each restart, but it cannot preserve zoom, and position
-  is only kept if you restart through the helper. Source evidence and the exact
+  window *placement* on each restart, and position is only kept if you restart
+  through the helper. The zoom reset is fixable locally with
+  `scripts/patch-opencode-zoom.ps1` (see Usage). Source evidence and the exact
   behaviour: [docs/window-placement-restore.md](docs/window-placement-restore.md#v2-why-the-app-does-not-restore-the-window-itself).
 - The helper resolves the opencode executable via `Get-Command opencode`
   first, then falls back to the default desktop install path.
